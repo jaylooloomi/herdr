@@ -1,0 +1,4 @@
+[submodule "bundled/agent-usage"]
+	path = bundled/agent-usage
+	url = https://github.com/jaylooloomi/herdr-agent-usage.git
+	branch = integration/windows-support
