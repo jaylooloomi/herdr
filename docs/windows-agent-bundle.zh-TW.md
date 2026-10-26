@@ -10,6 +10,7 @@
 | 修正版用戶端連回既有 0.9.5 server | 已驗證；沒有停止執行中的 agent |
 | 實體按鍵到 Claude 最終附件呈現 | 尚待使用者確認，不能等同上述程式測試 |
 | Claude、Codex、Agy 三個 CLI | 本機已安裝；新機自動安裝器尚待實作 |
+| OpenCode CLI | 已納入預設安裝規格；本次未執行本機安裝或連線驗證 |
 | QuotaDeck Windows 用量面板 | 本機已驗證三個 provider 可讀取數據；不是 Agent Usage 的 Windows 移植 |
 | Agent Usage | 已 fork 並以 submodule 納入本分支；Windows 移植尚未完成 |
 | 一鍵安裝、doctor、更新與回退腳本 | 本文件定義規格，尚未實作或發佈 |
@@ -28,7 +29,7 @@
 
 第一版正式目標是在 Windows 原生使用 Agent Usage。移植完成前，Windows 安裝必須明確報告尚不支援；若另提供 `-UsageBackend QuotaDeck`，應明確標示為替代模式，不能假稱是 Agent Usage，也不能同時讓兩個外掛覆寫同一組側欄與 statusLine。
 
-保留上游 Apache-2.0 與 MIT 授權、來源 commit、第三方聲明。三個 agent CLI 從各自官方來源安裝，不直接重發登入資料或混包商用二進位檔。
+保留上游 Apache-2.0 與 MIT 授權、來源 commit、第三方聲明。四個 agent CLI 從各自官方來源安裝，不直接重發登入資料或混包商用二進位檔。
 
 ## 預期的使用方式（尚未可執行）
 
@@ -38,9 +39,13 @@
 .\Test-HerdrBundle.ps1 -InstallRoot D:\Apps\HerdrBundle -Json
 ```
 
-預設安裝 Herdr、Agent Usage、Claude Code、Codex CLI、Antigravity CLI (`agy`) 與 Windows Terminal。預設使用一般帳號權限，不為使用者全域開啟 bypass permissions。需要時提供明確的 FullAccess 啟動選項，不修改現有對話權限。
+預設安裝 Herdr、Agent Usage、Claude Code、Codex CLI、Antigravity CLI (`agy`)、OpenCode (`opencode`) 與 Windows Terminal。預設使用一般帳號權限，不為使用者全域開啟 bypass permissions。需要時提供明確的 FullAccess 啟動選項，不修改現有對話權限。
 
 帳號登入仍由使用者完成：Claude/ChatGPT/Google OAuth 不能由安裝腳本假冒同意或自動填答。安裝器應列出 `needs-login` 和下一步，CLI 可用與 quota 可讀分開驗證。
+
+OpenCode 預設提供 OpenRouter 連線指引：在 OpenCode 內執行 `/connect`，選 OpenRouter 並輸入 key，再用 `/models` 選模型。key 留在 OpenCode 的憑證儲存區，不寫進 repo、bundle.lock 或安裝記錄；安裝器不可預設產生計費請求。OpenRouter 只是可選 provider，未設定時回報 `needs-login`/`needs-provider`，不阻止其他 agent 安裝。OpenCode 模型不固定成某個付費模型。
+
+OpenCode 1/2 共用 `opencode` 命令，不能無條件覆寫。release lock 必須選定且驗證一個版本、官方來源與 SHA-256，先查既有版本與 auth/config 路徑，再選擇沿用或顯示明確修復計畫。官方 V1 npm 套件為 `opencode-ai`；不能把 V1 指令與 V2 設定格式混用。參考 https://opencode.ai/docs/ 與 https://opencode.ai/docs/providers/#openrouter 。
 
 ## 目錄與交付檔案
 
@@ -52,7 +57,7 @@ Uninstall-HerdrBundle.ps1      # 只移除本套件擁有的檔案與設定
 bundle.lock.json              # schema/version、來源、commit、URL、SHA-256
 bundled/agent-usage/           # 固定版本外掛原始碼
 releases/<bundle-version>/    # 預編譯 Herdr + ConPTY runtime + usagebar.exe
-bin/                         # 穩定入口 herdr/claude/codex/agy
+bin/                         # 穩定入口 herdr/claude/codex/agy/opencode
 config/                      # Herdr 專用設定，與個人 agent 設定分離
 state/                       # installer 狀態、檢查結果與 update journal
 backups/<timestamp>/         # 原設定、原入口、ACL、來源版本
@@ -65,13 +70,13 @@ logs/                        # 安裝與 doctor 記錄，不記錄憑證
 
 1. **Discover**：確認 OS、x64/ARM64、PowerShell、磁碟空間、winget、PATH、既有版本、執行中的 server；不用 `Get-Command` 單次失敗就斷言未安裝。
 2. **Plan**：顯示將新增/沿用/更新的項目；既有可用 CLI 預設沿用，版本不足才修復。先解析 bundle.lock，無 Windows 相容產物就停止，不能退回不相容 Bash 外掛。
-3. **Backup**：保存 config.toml、Claude settings/statusLine、Codex config/hooks、Agy settings/hooks、使用者 PATH 與既有 launcher；保留檔案權限。
+3. **Backup**：保存 config.toml、Claude settings/statusLine、Codex config/hooks、Agy settings/hooks、OpenCode config/plugin 註冊、使用者 PATH 與既有 launcher；保留檔案權限。憑證不複製到公開報告，既有 OpenCode auth 不移除或覆寫。
 4. **Terminal**：缺少時以 winget 安裝 `Microsoft.WindowsTerminal`；驗證套件、wt.exe、實際啟動與捷徑。只設定本套件以 Terminal 啟動，不擅改 Windows 全系統預設終端機。
 5. **Download**：以 lock 中的官方 URL/固定 commit 下載到 staging，檢查 hash，再啟用；下載失敗不可留下半套 current。
-6. **Agent CLI**：安裝/確認 Claude、Codex、Agy；一律測試實際命令解析位置與版本。Codex 預設模型不寫死成某代模型，從登入帳號可用 catalog 選取或沿用。
+6. **Agent CLI**：安裝/確認 Claude、Codex、Agy、OpenCode；一律測試實際命令解析位置與版本。Codex 預設模型不寫死成某代模型，從登入帳號可用 catalog 選取或沿用。OpenCode 缺少 provider 時提供 `/connect` 指引，保留現有 provider 與預設模型。
 7. **Herdr**：啟用帶圖片修正的 bundle build，設定 HERDR_HOME/HERDR_CONFIG_PATH。不得把這兩個變數誤稱為所有 runtime 資料都已搬到 D 槽。
-8. **Integrations**：執行 `herdr integration install claude`、`codex`、`antigravity-cli`，核對 status；用 patch/adapter 保留原 hook，而非覆寫整個設定檔。
-9. **Usage**：註冊鎖定的 Windows Agent Usage，設定三個 provider、sidebar rows、更新機制與 statusLine adapter；檢查 setup/action 終止狀態，而非只檢查回應 receipt。
+8. **Integrations**：執行 `herdr integration install claude`、`codex`、`antigravity-cli`、`opencode`，核對 status；用 patch/adapter 保留原 hook，而非覆寫整個設定檔。OpenCode adapter 必須匹配其 major version，必要的首次 migration 完成前不強行註冊。
+9. **Usage**：註冊鎖定的 Windows Agent Usage，設定四個 harness 的收集器、sidebar rows、更新機制與所需 statusLine adapter；檢查 setup/action 終止狀態，而非只檢查回應 receipt。區分 harness 與計費 provider：OpenCode 使用 OpenRouter 時顯示實際後端的 token/cost/餘額證據，不捏造 5h/7d 訂閱百分比。
 10. **Launchers**：建立桌面/開始選單 Herdr Bundle 捷徑，透過 wt 的絕對路徑啟動；用 argv 處理空白/中文路徑。wrapper 只管理 bundle 自己的 bin，不修改 Volta 管理的 shim。
 11. **Verify**：CMD、64-bit/32-bit PowerShell、Windows Terminal 均驗證命令解析與版本；檢查 named test session 與現有 session 的相容性。
 12. **Finish**：產生安裝報告、登入待辦、回退入口；依 Project 參數打開 Terminal + Herdr。不得自行停止現有 server 或終止 agent 以完成更新。
@@ -100,7 +105,7 @@ logs/                        # 安裝與 doctor 記錄，不記錄憑證
 - 本分支在 local active surface 攔截 Alt+V，讀 Windows PNG/DIB，重用 ClipboardImage 訊息，server 暫存檔案並貼路徑；不自動按 Enter。
 - 沒圖片時按鍵繼續傳給 agent；Ctrl+V、文字、remote binding 不變。正式版可再做可設定的 local_image_paste，避免快捷鍵衝突。
 - 測試涵蓋 Alt+V/無 active surface/按鍵 release/文字與 Ctrl+V/mixed batch，並有 opt-in 真實剪貼簿到 PNG 暫存的測試。
-- 使用者實體按鍵與 Claude/Codex/Agy 接受圖片，列為 clean-machine 驗收，不以單元測試替代。
+- 使用者實體按鍵與 Claude/Codex/Agy/OpenCode 接受圖片，列為 clean-machine 驗收，不以單元測試替代；模型本身不支援圖片時須分別回報，不誤判為 clipboard 故障。
 
 ### Usage 與相容性
 
@@ -126,8 +131,8 @@ logs/                        # 安裝與 doctor 記錄，不記錄憑證
 
 1. **先完成 Agent Usage Windows port**：見 bundled/agent-usage/WINDOWS_PORT.md。Go build tags、file locks、process detach、resize、Windows hooks、cmd/shim、tests、native manifest 都要處理，不能只改 platforms。
 2. **建立 release pipeline**：Rust + Zig + ConPTY + Go 的 Windows 產物，固定來源/版本/hash、保留授權；在乾淨 VM 驗證。
-3. **實作 Installer/Doctor/Repair/Rollback**：預設三個 agent + Terminal，沿用既有登入，無開發工具需求。
+3. **實作 Installer/Doctor/Repair/Rollback**：預設四個 agent（Claude/Codex/Agy/OpenCode）+ Terminal，沿用既有登入，無開發工具需求。
 4. **Clean-machine 驗收**：Windows 10/11、全新/既有 Volta/npm/中文與空白安裝路徑、未裝 Terminal、離線/下載中斷、重跑、更新、回退。
-5. **功能驗收**：三個 agent 可用、三種 usage 與來源一致、圖片實際貼入三種對話、既有工作不被終止；通過後才發佈一鍵安裝命令。
+5. **功能驗收**：四個 agent 可用、四個 harness 的 usage 與實際 provider 來源一致、圖片實際貼入支援圖片的四種對話、OpenCode/OpenRouter 連線與選模可用、既有工作不被終止；未提供 key 時正確顯示待設定。通過後才發佈一鍵安裝命令。
 
 下一位 agent 從第 1 階段開始，不要將這份規劃或 submodule 當成 Windows 功能已實作完成。
