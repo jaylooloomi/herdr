@@ -10,7 +10,7 @@
 | 修正版用戶端連回既有 0.9.5 server | 已驗證；沒有停止執行中的 agent |
 | 實體按鍵到 Claude 最終附件呈現 | 尚待使用者確認，不能等同上述程式測試 |
 | Claude、Codex、Agy 三個 CLI | 本機已安裝；新機自動安裝器尚待實作 |
-| OpenCode CLI | 已納入預設安裝規格；本次未執行本機安裝或連線驗證 |
+| OpenCode CLI | 本機已安裝 1.19.4；命令解析至使用者 Volta bin，版本執行成功；OpenRouter 連線尚未驗證 |
 | QuotaDeck Windows 用量面板 | 本機已驗證三個 provider 可讀取數據；不是 Agent Usage 的 Windows 移植 |
 | Agent Usage | 已 fork 並以 submodule 納入本分支；Windows 移植尚未完成 |
 | 一鍵安裝、doctor、更新與回退腳本 | 本文件定義規格，尚未實作或發佈 |
